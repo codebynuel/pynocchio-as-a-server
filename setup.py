@@ -4,10 +4,11 @@ import io
 import os
 import re
 import sys
+import shutil
 import platform
 import subprocess
 
-from distutils.version import LooseVersion
+from packaging.version import Version
 from setuptools import setup, find_packages, Extension
 from setuptools.command.build_ext import build_ext
 
@@ -28,9 +29,9 @@ class CMakeBuild(build_ext):
                 ", ".join(e.name for e in self.extensions))
 
         if platform.system() == "Windows":
-            cmake_version = LooseVersion(re.search(r'version\s*([\d.]+)',
+            cmake_version = Version(re.search(r'version\s*([\d.]+)',
                                          out.decode()).group(1))
-            if cmake_version < '3.1.0':
+            if cmake_version < Version('3.1.0'):
                 raise RuntimeError("CMake >= 3.1.0 is required on Windows")
 
         for ext in self.extensions:
@@ -46,12 +47,23 @@ class CMakeBuild(build_ext):
         build_args = ['--config', cfg]
 
         if platform.system() == "Windows":
-            cmake_args += ['-DCMAKE_LIBRARY_OUTPUT_DIRECTORY_{}={}'.format(
-                cfg.upper(),
-                extdir)]
-            if sys.maxsize > 2 ** 32:
-                cmake_args += ['-A', 'x64']
-            build_args += ['--', '/m']
+            use_mingw = os.environ.get('USE_MINGW') or not shutil.which('cl')
+            if use_mingw:
+                mingw_bin = os.environ.get('MINGW_BIN', r'C:\msys64\mingw64\bin')
+                ninja_path = shutil.which('ninja') or os.path.join(mingw_bin, 'ninja.exe')
+                cmake_args += ['-G', 'Ninja',
+                               '-DCMAKE_BUILD_TYPE=' + cfg,
+                               '-DCMAKE_C_COMPILER=' + os.path.join(mingw_bin, 'gcc.exe'),
+                               '-DCMAKE_CXX_COMPILER=' + os.path.join(mingw_bin, 'g++.exe'),
+                               '-DCMAKE_MAKE_PROGRAM=' + ninja_path]
+                build_args = ['--config', cfg]
+            else:
+                cmake_args += ['-DCMAKE_LIBRARY_OUTPUT_DIRECTORY_{}={}'.format(
+                    cfg.upper(),
+                    extdir)]
+                if sys.maxsize > 2 ** 32:
+                    cmake_args += ['-A', 'x64']
+                build_args += ['--', '/m']
         else:
             cmake_args += ['-DCMAKE_BUILD_TYPE=' + cfg]
             build_args += ['--', '-j2']
@@ -62,7 +74,8 @@ class CMakeBuild(build_ext):
             self.distribution.get_version())
         if not os.path.exists(self.build_temp):
             os.makedirs(self.build_temp)
-        subprocess.check_call(['cmake', ext.sourcedir] + cmake_args,
+        subprocess.check_call(['cmake', ext.sourcedir,
+                                '-DCMAKE_POLICY_VERSION_MINIMUM=3.5'] + cmake_args,
                               cwd=self.build_temp, env=env)
         subprocess.check_call(['cmake', '--build', '.'] + build_args,
                               cwd=self.build_temp)

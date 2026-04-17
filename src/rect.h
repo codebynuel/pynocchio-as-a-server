@@ -145,7 +145,7 @@ private:
     static const int last = Dim - 1;
     typedef RectOp<Dim - 1> Next;
     template<int D> friend class RectOp;
-    template<class R, int D> friend class Rect;
+    template<class R, int D> friend class ::Rect;
 
     template<class R, int D>
     static R distSq(const RRD &r, const VRD &v)
@@ -176,6 +176,7 @@ class RectOp<1>
 {
 private:
     template<int D> friend class RectOp;
+    template<class R, int D> friend class ::Rect;
 
     template<class R, int D>
     static R distSq(const RRD &r, const VRD &v)
