@@ -33,7 +33,7 @@ document.getElementById('form').onsubmit = async (e) => {
   fd.append('scale', document.getElementById('scale').value);
 
   try {
-    const res = await fetch('http://127.0.0.1:5000/rig', { method: 'POST', body: fd });
+    const res = await fetch('/rig', { method: 'POST', body: fd });
     if (!res.ok) {
       const err = await res.json();
       status.textContent = 'Error: ' + (err.error || res.statusText);

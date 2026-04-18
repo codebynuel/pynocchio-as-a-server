@@ -12,7 +12,7 @@ import traceback
 
 import numpy as np
 import trimesh
-from flask import Flask, request, jsonify, send_file
+from flask import Flask, request, jsonify, send_file, send_from_directory
 
 import pynocchio
 from pynocchio import skeletons
@@ -343,6 +343,11 @@ def rig_model():
     finally:
         if obj_path and os.path.exists(obj_path):
             os.unlink(obj_path)
+
+
+@app.route("/", methods=["GET"])
+def index():
+    return send_from_directory(os.path.dirname(os.path.abspath(__file__)), "test.html")
 
 
 @app.route("/health", methods=["GET"])
